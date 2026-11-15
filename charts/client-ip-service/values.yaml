@@ -10,7 +10,8 @@ image:
   tag: ""
   pullPolicy: IfNotPresent
 
-# The GHCR image is public, so no pull secret is needed (decision 22).
+# Secrets for pulling from a private registry, e.g. [{name: ghcr-pull}].
+# Set per environment; see values-staging.yaml (decision 22).
 imagePullSecrets: []
 
 nameOverride: ""

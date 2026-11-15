@@ -1,6 +1,11 @@
 # Staging on the local kind cluster. Used with:
 #   helm upgrade --install ... -f values-staging.yaml --set image.digest=sha256:...
 
+# The GHCR image is private. The deploy job creates this Secret in the staging
+# namespace from the GHCR_PULL_TOKEN GitHub secret (decision 22).
+imagePullSecrets:
+  - name: ghcr-pull
+
 config:
   # kind's pod CIDR, where Traefik runs
   forwardedAllowIps: "10.244.0.0/16"
