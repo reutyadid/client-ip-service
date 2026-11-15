@@ -83,7 +83,9 @@ jobs:
         run: uv sync --locked
 
       - name: Run tests
-        run: uv run pytest -v -rA --junitxml=unit-report.xml
+        # No -rA: it prints captured output of passing tests, and the AI
+        # diagnosis tests print ::warning lines that GitHub turns into annotations
+        run: uv run pytest -v --junitxml=unit-report.xml
 
       - name: Upload unit test report
         if: ${{ !cancelled() }}
