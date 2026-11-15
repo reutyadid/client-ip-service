@@ -57,10 +57,7 @@ def test_failed_jobs_includes_timeouts_and_cancelled_steps():
             {"id": 3, "name": "ai-diagnosis", "conclusion": "failure", "steps": []},
         ]
     }
-    gh = GitHubClient("https://api.github.com", "t", "o/r")
-    gh._http = httpx2.Client(
-        base_url="https://api.github.com",
-        transport=httpx2.MockTransport(lambda req: httpx2.Response(200, json=jobs)),
-    )
+    transport = httpx2.MockTransport(lambda req: httpx2.Response(200, json=jobs))
+    gh = GitHubClient("https://api.github.com", "t", "o/r", transport=transport)
     result = gh.failed_jobs("42", exclude="ai-diagnosis")
     assert [(j.name, j.failed_steps) for j in result] == [("deploy", ["Helm upgrade"])]

@@ -1,5 +1,6 @@
 """The whole diagnosis flow with fake GitHub and model clients."""
 
+import dataclasses
 import json
 
 import pytest
@@ -24,7 +25,6 @@ def cfg(tmp_path):
     return Config(
         github_token="t",
         github_api_url="https://api.github.com",
-        server_url="https://github.com",
         repository="o/r",
         run_id="42",
         own_job_name="ai-diagnosis",
@@ -33,6 +33,7 @@ def cfg(tmp_path):
         ai_base_url="https://models.example",
         ai_model="m",
         ai_api_key="t",
+        run_url="https://github.com/o/r/actions/runs/42",
     )
 
 
@@ -106,7 +107,7 @@ def test_timed_out_job_is_listed(cfg):
 
 
 def test_unwritable_summary_still_exits_zero(cfg, monkeypatch):
-    bad = cfg.__class__(**{**cfg.__dict__, "step_summary_path": "/nonexistent/x/y"})
+    bad = dataclasses.replace(cfg, step_summary_path="/nonexistent/x/y")
     monkeypatch.setattr(diagnose, "load_config", lambda: bad)
     monkeypatch.setattr(diagnose, "GitHubClient", lambda *a: FakeGitHub([], {}))
     monkeypatch.setattr(diagnose, "OpenAICompatibleClient", lambda *a: FakeLLM())

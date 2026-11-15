@@ -5,6 +5,7 @@ diagnosis must not hide or replace the original failure. Problems are
 reported as workflow warnings instead.
 """
 
+import html
 import sys
 from pathlib import Path
 
@@ -28,21 +29,15 @@ def warn(message: str) -> None:
     print(f"::warning title=AI diagnosis::{message}", file=sys.stderr)
 
 
-def escape_untrusted(text: str) -> str:
-    """Neutralize anything in untrusted text that could close our <job_log>
-    tag or fake an attribute, so the boundary stays where we put it."""
-    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-
-
-def build_user_content(jobs: list[FailedJob], logs: dict[int, str]) -> str:
-    per_job = MAX_LOG_CHARS_TOTAL // max(1, len(jobs))
+def build_user_content(jobs: list[FailedJob], excerpts: dict[int, str]) -> str:
+    """Wrap each excerpt in a <job_log> tag. html.escape on everything inside
+    (log text, job and step names, which a PR can edit in the workflow file)
+    keeps untrusted text from closing the tag or faking an attribute."""
     blocks = []
     for job in jobs:
-        # Job and step names come from the workflow file, which a PR can edit.
-        name = escape_untrusted(job.name).replace('"', "&quot;")
-        steps = escape_untrusted(", ".join(job.failed_steps) or "unknown")
-        steps = steps.replace('"', "&quot;")
-        log = escape_untrusted(excerpt(logs.get(job.id, ""), max_chars=per_job))
+        name = html.escape(job.name)
+        steps = html.escape(", ".join(job.failed_steps) or "unknown")
+        log = html.escape(excerpts.get(job.id, ""), quote=False)
         blocks.append(
             f'<job_log job="{name}" failed_steps="{steps}">\n{log}\n</job_log>'
         )
@@ -55,19 +50,21 @@ def build_user_content(jobs: list[FailedJob], logs: dict[int, str]) -> str:
 def run(cfg: Config, gh: GitHubClient, llm: LLMClient) -> str:
     """Build the report text. Never raises for model problems."""
     jobs = gh.failed_jobs(cfg.run_id, exclude=cfg.own_job_name)
-    names = [job.name for job in jobs]
     if not jobs:
-        return render_fallback(names, cfg.run_url, "no failed job found")
+        return render_fallback([], cfg.run_url, "no failed job found")
+    names = [job.name for job in jobs]
 
-    logs = {}
+    # Keep only each excerpt, not the full logs (up to a few MB each).
+    per_job = MAX_LOG_CHARS_TOTAL // len(jobs)
+    excerpts = {}
     for job in jobs:
         try:
-            logs[job.id] = gh.job_log(job.id)
+            excerpts[job.id] = excerpt(gh.job_log(job.id), max_chars=per_job)
         except Exception as exc:  # noqa: BLE001 - one missing log is not fatal
             warn(f"could not read the log of job '{job.name}': {exc}")
 
     try:
-        raw = llm.complete(PROMPT_PATH.read_text(), build_user_content(jobs, logs))
+        raw = llm.complete(PROMPT_PATH.read_text(), build_user_content(jobs, excerpts))
         return render_diagnosis(parse_diagnosis(raw), names, cfg.run_url)
     except InvalidDiagnosis as exc:
         warn(f"the model's answer was not valid: {exc}")

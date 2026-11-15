@@ -59,7 +59,7 @@ def test_excerpt_keeps_error_context_and_tail():
 def test_excerpt_respects_max_chars_and_keeps_the_end():
     log = "\n".join(f"error line {i}" for i in range(1000))
     out = excerpt(log, max_chars=500)
-    assert len(out) <= 500 + len("[...truncated...]\n")
+    assert len(out) <= 500
     assert out.endswith("error line 999")
 
 
@@ -79,3 +79,17 @@ def test_private_key_cut_by_the_excerpt_is_still_redacted():
     )
     out = excerpt(log, max_chars=10_000, context=8, tail=5)
     assert "KEYMATERIAL" not in out
+
+
+def test_error_windows_survive_a_long_tail():
+    # The cause is far above a long tail; the old single budget cut it off.
+    log = "\n".join(
+        ["setup"] * 50
+        + ["ModuleNotFoundError: No module named 'fastapi'"]
+        + ["noise"] * 50
+        + [f"tail line {i} " + "x" * 60 for i in range(40)]
+    )
+    out = excerpt(log, max_chars=1000)
+    assert "ModuleNotFoundError" in out
+    assert "tail line 39" in out
+    assert len(out) <= 1000

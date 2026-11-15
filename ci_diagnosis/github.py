@@ -1,5 +1,6 @@
 """The GitHub REST API calls the diagnosis needs, and nothing more."""
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 import httpx2
@@ -22,10 +23,17 @@ class FailedJob:
 
 
 class GitHubClient:
-    def __init__(self, api_url: str, token: str, repository: str) -> None:
+    def __init__(
+        self,
+        api_url: str,
+        token: str,
+        repository: str,
+        transport: httpx2.BaseTransport | None = None,
+    ) -> None:
         self._repo = repository
         # httpx2 drops the Authorization header on cross-origin redirects; the
         # logs endpoint redirects to blob storage, which must not get the token.
+        # `transport` lets tests replace the network, not the configuration.
         self._http = httpx2.Client(
             base_url=api_url,
             headers={
@@ -35,7 +43,19 @@ class GitHubClient:
             },
             timeout=30.0,
             follow_redirects=True,
+            transport=transport,
         )
+
+    def _pages(self, path: str, params: dict, key: str | None = None) -> Iterator:
+        """Yield items from every page, following GitHub's Link: rel="next"."""
+        url: str | None = path
+        while url:
+            response = self._http.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            yield from data[key] if key else data
+            url = response.links.get("next", {}).get("url")
+            params = {}  # the next URL already carries the query
 
     def failed_jobs(self, run_id: str, exclude: str) -> list[FailedJob]:
         """Jobs of this run attempt that failed or timed out, except the
@@ -44,25 +64,24 @@ class GitHubClient:
         Includes jobs that ran on the self-hosted ARC runner: their logs are
         streamed to GitHub like any other job's.
         """
-        response = self._http.get(
+        jobs = self._pages(
             f"/repos/{self._repo}/actions/runs/{run_id}/jobs",
-            params={"filter": "latest", "per_page": 100},
+            {"filter": "latest", "per_page": 100},
+            key="jobs",
         )
-        response.raise_for_status()
-        jobs = []
-        for job in response.json()["jobs"]:
-            if (
-                job["conclusion"] not in FAILED_JOB_CONCLUSIONS
-                or job["name"] == exclude
-            ):
-                continue
-            steps = [
-                s["name"]
-                for s in job.get("steps", [])
-                if s["conclusion"] in FAILED_STEP_CONCLUSIONS
-            ]
-            jobs.append(FailedJob(id=job["id"], name=job["name"], failed_steps=steps))
-        return jobs
+        return [
+            FailedJob(
+                id=job["id"],
+                name=job["name"],
+                failed_steps=[
+                    s["name"]
+                    for s in job.get("steps", [])
+                    if s["conclusion"] in FAILED_STEP_CONCLUSIONS
+                ],
+            )
+            for job in jobs
+            if job["conclusion"] in FAILED_JOB_CONCLUSIONS and job["name"] != exclude
+        ]
 
     def job_log(self, job_id: int) -> str:
         response = self._http.get(f"/repos/{self._repo}/actions/jobs/{job_id}/logs")
@@ -76,26 +95,13 @@ class GitHubClient:
         comment that quotes the bot also contains the marker and must never
         be overwritten.
         """
-        existing = None
-        page = 1
-        while existing is None:
-            response = self._http.get(
-                f"/repos/{self._repo}/issues/{pr_number}/comments",
-                params={"per_page": 100, "page": page},
-            )
-            response.raise_for_status()
-            comments = response.json()
-            if not comments:
-                break
-            existing = next((c for c in comments if is_our_comment(c)), None)
-            page += 1
-
-        if existing:
-            url = f"/repos/{self._repo}/issues/comments/{existing['id']}"
-            self._http.patch(url, json={"body": body}).raise_for_status()
-        else:
-            url = f"/repos/{self._repo}/issues/{pr_number}/comments"
-            self._http.post(url, json={"body": body}).raise_for_status()
+        comments_path = f"/repos/{self._repo}/issues/{pr_number}/comments"
+        for comment in self._pages(comments_path, {"per_page": 100}):
+            if is_our_comment(comment):
+                url = f"/repos/{self._repo}/issues/comments/{comment['id']}"
+                self._http.patch(url, json={"body": body}).raise_for_status()
+                return
+        self._http.post(comments_path, json={"body": body}).raise_for_status()
 
 
 def is_our_comment(comment: dict) -> bool:
