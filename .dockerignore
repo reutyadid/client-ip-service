@@ -1,0 +1,11 @@
+# Allowlist: ignore everything, then let in only what the build needs.
+# New files stay out of the image unless added here, so secrets such as
+# .env, the .git history and local venvs can never slip in.
+*
+
+!app/
+!pyproject.toml
+!uv.lock
+
+# Never ship bytecode caches from the host
+**/__pycache__
