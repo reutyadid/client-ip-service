@@ -83,7 +83,20 @@ jobs:
         run: uv sync --locked
 
       - name: Run tests
-        run: uv run pytest
+        run: uv run pytest -v -rA --junitxml=unit-report.xml
+
+      - name: Upload unit test report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unit-report
+          path: unit-report.xml
+
+      - name: Add unit test results to run summary
+        if: ${{ !cancelled() }}
+        run: |
+          python3 .github/scripts/junit_summary.py "Unit tests" unit-report.xml \
+            >> "$GITHUB_STEP_SUMMARY"
 
   # Build once and hand the exact image to scan and push as a tar artifact,
   # so the bytes that get pushed are the bytes that were scanned.
@@ -445,15 +458,8 @@ jobs:
       - name: Add smoke test results to run summary
         if: ${{ !cancelled() }}
         run: |
-          python3 - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
-          import xml.etree.ElementTree as ET
-          suite = ET.parse("smoke-report.xml").getroot().find("testsuite")
-          print("## Smoke tests")
-          for case in suite.iter("testcase"):
-              outcome = ("❌ failed" if case.find("failure") is not None or case.find("error") is not None
-                         else "⏭️ skipped" if case.find("skipped") is not None else "✅ passed")
-              print(f"- {outcome}: `{case.get('name')}`")
-          EOF
+          python3 .github/scripts/junit_summary.py "Smoke tests" smoke-report.xml \
+            >> "$GITHUB_STEP_SUMMARY"
 
       - name: Collect cluster diagnostics
         if: failure()
