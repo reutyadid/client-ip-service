@@ -98,7 +98,7 @@ jobs:
         with:
           persist-credentials: false
 
-      # The base images come from Docker Hardened Images (decision 20).
+      # The base images come from Docker Hardened Images (ADR-0020).
       # Read-only Docker Hub token; only this job receives it.
       # Fork PRs get no secrets, so this step fails for them.
       - name: Log in to dhi.io
@@ -143,7 +143,7 @@ jobs:
           if-no-files-found: error
 
   # Scan the exact image built above. Gate on fixable CRITICAL/HIGH findings
-  # (decision 13); justified exceptions go in .trivyignore, which Trivy reads
+  # (ADR-0013); justified exceptions go in .trivyignore, which Trivy reads
   # automatically.
   scan:
     needs: build
@@ -303,21 +303,182 @@ jobs:
             -f charts/client-ip-service/values-staging.yaml \
             --set image.digest="$DIGEST"
 
-  # Runs only when an earlier job failed (decision 5). Reads the failed jobs'
+
+  # Deploy to the staging namespace on the local kind cluster (ADR-0002),
+  # from the self-hosted ARC runner, which authenticates to the cluster with
+  # its own ServiceAccount (Role "deployer", staging only; ADR-0010).
+  deploy:
+    needs: [push, helm-lint]
+    runs-on: kind-staging
+    timeout-minutes: 10
+    # A deployment record on the repository page (ADR-0012)
+    environment:
+      name: staging
+      url: http://localhost/
+    # Deploys queue up; one is never cancelled halfway through.
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    env:
+      NAMESPACE: staging
+      RELEASE: client-ip-service
+      DIGEST: ${{ needs.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.3.1
+
+      - uses: azure/setup-kubectl@bda439f5f36b99b262ebdcd3613869bddb064c8e # v5.2.0
+        with:
+          version: v1.37.2
+
+      # The private GHCR image is pulled with a dedicated read-only token
+      # (ADR-0022). The Docker config is built from an environment variable and
+      # passed on stdin, so the token never appears in a command line.
+      # dry-run | apply creates the Secret or updates it after a token rotation.
+      - name: Create or update the image pull secret
+        env:
+          OWNER: ${{ github.repository_owner }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+        run: |
+          if [ -z "$GHCR_PULL_TOKEN" ]; then
+            echo "::error::The GHCR_PULL_TOKEN secret is not set"
+            exit 1
+          fi
+          python3 -c 'import base64, json, os
+          auth = base64.b64encode(f"{os.environ["OWNER"]}:{os.environ["GHCR_PULL_TOKEN"]}".encode()).decode()
+          print(json.dumps({"auths": {"ghcr.io": {"auth": auth}}}))' \
+            | kubectl create secret generic ghcr-pull \
+                --namespace "$NAMESPACE" \
+                --type=kubernetes.io/dockerconfigjson \
+                --from-file=.dockerconfigjson=/dev/stdin \
+                --dry-run=client --output yaml \
+            | kubectl apply --filename -
+
+      # upgrade --install: installs the first time, upgrades after that.
+      # --rollback-on-failure: waits for the rollout and returns to the last
+      # working release if it fails, so staging is never left half-deployed.
+      # --history-max: keeps the release history (stored as Secrets) bounded.
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install "$RELEASE" charts/client-ip-service \
+            --namespace "$NAMESPACE" \
+            --values charts/client-ip-service/values-staging.yaml \
+            --set image.digest="$DIGEST" \
+            --rollback-on-failure --wait --timeout 3m \
+            --history-max 10
+
+      - name: Add deployment to run summary
+        run: |
+          revision="$(helm history "$RELEASE" --namespace "$NAMESPACE" --max 1 --output json \
+            | python3 -c 'import json, sys; print(json.load(sys.stdin)[-1]["revision"])')"
+          {
+            echo "## Deployed to staging"
+            echo "- Release: \`$RELEASE\`, revision $revision"
+            echo "- Image: \`$DIGEST\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Cluster state goes into the job log, where the AI diagnosis reads it.
+      - name: Collect cluster diagnostics
+        if: failure()
+        run: |
+          kubectl --namespace "$NAMESPACE" get pods --output wide || true
+          kubectl --namespace "$NAMESPACE" describe pods \
+            --selector "app.kubernetes.io/instance=$RELEASE" || true
+          kubectl --namespace "$NAMESPACE" get events --sort-by=.lastTimestamp || true
+          kubectl --namespace "$NAMESPACE" logs \
+            --selector "app.kubernetes.io/instance=$RELEASE" --tail=50 || true
+          helm history "$RELEASE" --namespace "$NAMESPACE" || true
+
+  # Smoke tests against the deployment, from inside the cluster (tests/smoke).
+  # In-cluster access is what lets them prove the NetworkPolicy (ADR-0015).
+  smoke-test:
+    needs: [push, deploy]
+    runs-on: kind-staging
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      SMOKE_GATEWAY_URL: http://traefik.traefik.svc.cluster.local
+      SMOKE_APP_URL: http://client-ip-service.staging.svc.cluster.local
+      SMOKE_NAMESPACE: staging
+      SMOKE_RELEASE: client-ip-service
+      SMOKE_DIGEST: ${{ needs.push.outputs.digest }}
+      SMOKE_DOCS_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.6"
+          enable-cache: true
+          cache-python: true
+
+      # The deployment tests read pod status with kubectl.
+      - uses: azure/setup-kubectl@bda439f5f36b99b262ebdcd3613869bddb064c8e # v5.2.0
+        with:
+          version: v1.37.2
+
+      - name: Install smoke test dependencies
+        run: uv sync --locked --only-group smoke
+
+      - name: Run smoke tests
+        run: |
+          uv run --no-sync pytest tests/smoke -v -rA \
+            --junitxml=smoke-report.xml
+
+      - name: Upload smoke test report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: smoke-report
+          path: smoke-report.xml
+
+      - name: Add smoke test results to run summary
+        if: ${{ !cancelled() }}
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import xml.etree.ElementTree as ET
+          suite = ET.parse("smoke-report.xml").getroot().find("testsuite")
+          print("## Smoke tests")
+          for case in suite.iter("testcase"):
+              outcome = ("❌ failed" if case.find("failure") is not None or case.find("error") is not None
+                         else "⏭️ skipped" if case.find("skipped") is not None else "✅ passed")
+              print(f"- {outcome}: `{case.get('name')}`")
+          EOF
+
+      - name: Collect cluster diagnostics
+        if: failure()
+        run: |
+          kubectl --namespace "$SMOKE_NAMESPACE" get pods,svc,networkpolicy --output wide || true
+          kubectl --namespace "$SMOKE_NAMESPACE" get httproute --output yaml || true
+          kubectl --namespace "$SMOKE_NAMESPACE" logs \
+            --selector "app.kubernetes.io/instance=$SMOKE_RELEASE" --tail=50 || true
+
+  # Runs only when an earlier job failed (ADR-0005). Reads the failed jobs'
   # logs (including jobs on the self-hosted runner, whose logs are streamed to
   # GitHub), asks a language model for a diagnosis, and posts it as one sticky
   # PR comment plus the run summary. Logs are untrusted: the job never executes
   # anything from the logs or the model, and its only secret is the optional
-  # AI_API_KEY for a non-GitHub provider (decision 24).
+  # AI_API_KEY for a non-GitHub provider (ADR-0024).
   ai-diagnosis:
-    needs: [lint-python, lint-docker, test, build, scan, push, helm-lint]
+    needs:
+      [lint-python, lint-docker, test, build, scan, push, helm-lint, deploy, smoke-test]
     if: failure()
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read         # checkout of the private repo
       actions: read          # list jobs and download their logs
-      models: read           # GitHub Models with the built-in token (decision 6)
+      models: read           # GitHub Models with the built-in token (ADR-0006)
       pull-requests: write   # one sticky comment on the PR
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
