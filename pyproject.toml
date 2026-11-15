@@ -9,8 +9,16 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = [
+# The AI failure-diagnosis step in CI (ci_diagnosis/). Not in the app image.
+ci = [
     "httpx2>=2.16.0",
+    "openai>=3.42.0",
+    "pydantic>=2.14.2",
+]
+dev = [
+    # Tests and lint cover ci_diagnosis/ too. Also brings httpx2, which
+    # FastAPI's TestClient uses.
+    { include-group = "ci" },
     "pytest>=9.2.0",
     "ruff>=0.17.3",
 ]
@@ -35,7 +43,8 @@ select = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101"]  # assert is how pytest checks results
+# assert is how pytest checks results; tests use fake credentials on purpose
+"tests/**" = ["S101", "S105", "S106"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
