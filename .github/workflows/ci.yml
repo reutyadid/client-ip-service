@@ -127,3 +127,152 @@ jobs:
           path: ${{ runner.temp }}/image.tar
           retention-days: 1
           if-no-files-found: error
+
+  # Scan the exact image built above. Gate on fixable CRITICAL/HIGH findings
+  # (decision 13); justified exceptions go in .trivyignore, which Trivy reads
+  # automatically.
+  scan:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write # only used when the repo is public
+    steps:
+      # .trivyignore lives in the repo
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download image artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: image
+          path: ${{ runner.temp }}
+
+      # trivy-action v0.36.0 was released after the March 2026 compromise
+      # (GHSA-69fq-xp46-6x23) and pins setup-trivy to the safe v0.2.6 SHA.
+      # The Trivy binary version is pinned explicitly too.
+      - name: Trivy scan (gate)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.70.0
+          scan-type: image
+          input: ${{ runner.temp }}/image.tar
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          format: table
+          output: trivy-table.txt
+          exit-code: "1"
+
+      - name: Trivy SARIF report
+        if: ${{ !cancelled() }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.70.0
+          skip-setup-trivy: true
+          scan-type: image
+          input: ${{ runner.temp }}/image.tar
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: "0"
+
+      - name: SBOM (CycloneDX)
+        if: ${{ !cancelled() }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.70.0
+          skip-setup-trivy: true
+          scan-type: image
+          input: ${{ runner.temp }}/image.tar
+          format: cyclonedx
+          output: sbom.cdx.json
+          exit-code: "0"
+
+      - name: Add scan results to run summary
+        if: ${{ !cancelled() }}
+        run: |
+          {
+            echo "## Trivy scan (CRITICAL, HIGH, fixable)"
+            echo '```'
+            cat trivy-table.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload scan reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: scan-reports
+          path: |
+            trivy-table.txt
+            trivy-results.sarif
+            sbom.cdx.json
+
+      # Code scanning on a private personal repo needs GitHub Code Security,
+      # so the upload runs only once the repo is public.
+      - name: Upload SARIF to Security tab
+        if: ${{ !cancelled() && !github.event.repository.private }}
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy
+
+  # Push the scanned image to GHCR. The only job with registry write access.
+  push:
+    needs: scan
+    # Fork PRs get a read-only token and cannot push.
+    if: >-
+      github.event_name == 'push' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.push.outputs.image }}
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: image
+          path: ${{ runner.temp }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Load and push image
+        id: push
+        env:
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          docker load --input "$RUNNER_TEMP/image.tar"
+          docker push "$IMAGE_NAME:$SHA"
+          # Deploy by digest: immutable, unlike a tag.
+          image="$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE_NAME:$SHA")"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "Pushed \`$image\`" >> "$GITHUB_STEP_SUMMARY"
+
+  # Static chart checks; no cluster needed, so it runs on a GitHub runner.
+  helm-lint:
+    needs: push
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.3.1
+
+      - name: Helm lint
+        run: helm lint charts/client-ip-service --strict
