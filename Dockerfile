@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-# Docker Hardened Images (decision 20). Pulling from dhi.io needs a Docker Hub
+# Docker Hardened Images (ADR-0020). Pulling from dhi.io needs a Docker Hub
 # login: locally `docker login dhi.io`, in CI the DOCKERHUB_TOKEN secret.
 # Pinned by version and digest: the tag documents what it is, the digest
 # guarantees the exact bytes.
@@ -55,7 +55,7 @@ EXPOSE 8000
 # SIGTERM for a graceful shutdown.
 # --factory: config is read from the environment at startup (FORWARDED_ALLOW_IPS,
 #   DOCS_ENABLED); a missing or invalid value stops the container.
-# --no-proxy-headers: X-Forwarded-For is handled inside the app (decision 19).
+# --no-proxy-headers: X-Forwarded-For is handled inside the app (ADR-0019).
 # --no-server-header: do not advertise "server: uvicorn".
 CMD ["uvicorn", "--factory", "app.main:app_from_env", \
      "--host", "0.0.0.0", "--port", "8000", \

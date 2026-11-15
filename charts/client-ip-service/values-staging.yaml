@@ -2,7 +2,7 @@
 #   helm upgrade --install ... -f values-staging.yaml --set image.digest=sha256:...
 
 # The GHCR image is private. The deploy job creates this Secret in the staging
-# namespace from the GHCR_PULL_TOKEN GitHub secret (decision 22).
+# namespace from the GHCR_PULL_TOKEN GitHub secret (ADR-0022).
 imagePullSecrets:
   - name: ghcr-pull
 

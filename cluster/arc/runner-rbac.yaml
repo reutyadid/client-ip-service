@@ -1,4 +1,4 @@
-# Identity of the ARC runner pods (decision 10, decision 3).
+# Identity of the ARC runner pods (ADR-0010, ADR-0003).
 # The runner can manage the app's resources in the staging namespace only.
 # No ClusterRole, nothing outside staging.
 apiVersion: v1

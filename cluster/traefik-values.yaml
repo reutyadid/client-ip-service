@@ -1,4 +1,4 @@
-# Traefik as the Gateway API implementation (decision 21).
+# Traefik as the Gateway API implementation (ADR-0021).
 # Installed with --skip-crds: we use only the official Gateway API CRDs, not
 # Traefik's own CRDs or Traefik Hub's.
 
@@ -48,7 +48,7 @@ ports:
 service:
   spec:
     # kind has no LoadBalancer; NodePort is the Kubernetes-recommended way to
-    # expose a port (decision 23). Local keeps the client's source IP: without
+    # expose a port (ADR-0023). Local keeps the client's source IP: without
     # it kube-proxy rewrites the source address before Traefik sees it.
     type: NodePort
     externalTrafficPolicy: Local
