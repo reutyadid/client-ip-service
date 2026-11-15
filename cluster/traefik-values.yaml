@@ -1,0 +1,54 @@
+# Traefik as the Gateway API implementation (decision 21).
+# Installed with --skip-crds: we use only the official Gateway API CRDs, not
+# Traefik's own CRDs or Traefik Hub's.
+
+deployment:
+  replicas: 1
+
+providers:
+  # Only Gateway API; IngressRoute (Traefik CRDs) and Ingress are off.
+  kubernetesCRD:
+    enabled: false
+  kubernetesIngress:
+    enabled: false
+  kubernetesGateway:
+    enabled: true
+
+gatewayClass:
+  enabled: true
+
+# No IngressClass: the Ingress provider is off.
+ingressClass:
+  enabled: false
+
+# The Gateway that app charts attach HTTPRoutes to (parentRefs: traefik/web).
+gateway:
+  enabled: true
+  name: web
+  listeners:
+    web:
+      port: 8000
+      protocol: HTTP
+      # Only routes from the staging namespace may attach to this Gateway.
+      namespacePolicy:
+        from: Selector
+        selector:
+          matchLabels:
+            kubernetes.io/metadata.name: staging
+
+ports:
+  web:
+    # Fixed, so kind-config.yaml can map localhost:80 to it
+    nodePort: 30080
+  websecure:
+    # No TLS listener yet
+    expose:
+      default: false
+
+service:
+  spec:
+    # kind has no LoadBalancer; NodePort is the Kubernetes-recommended way to
+    # expose a port (decision 23). Local keeps the client's source IP: without
+    # it kube-proxy rewrites the source address before Traefik sees it.
+    type: NodePort
+    externalTrafficPolicy: Local

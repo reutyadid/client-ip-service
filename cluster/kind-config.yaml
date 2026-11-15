@@ -1,0 +1,16 @@
+# Local kind cluster for the staging environment.
+# Port mappings can only be set when the cluster is created, so they live here.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: client-ip
+nodes:
+  - role: control-plane
+    # Pinned by version and digest
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+    extraPortMappings:
+      # localhost:80 -> Traefik's NodePort Service (decision 23)
+      - containerPort: 30080
+        hostPort: 80
+        # Only this machine can reach staging, not the rest of the network
+        listenAddress: "127.0.0.1"
+        protocol: TCP
