@@ -1,0 +1,13 @@
+# Staging on the local kind cluster. Used with:
+#   helm upgrade --install ... -f values-staging.yaml --set image.digest=sha256:...
+
+config:
+  # kind's pod CIDR, where Traefik runs
+  forwardedAllowIps: "10.244.0.0/16"
+  docsEnabled: true
+
+httpRoute:
+  enabled: true
+
+networkPolicy:
+  enabled: true

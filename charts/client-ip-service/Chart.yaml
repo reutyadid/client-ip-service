@@ -1,0 +1,8 @@
+apiVersion: v2
+name: client-ip-service
+description: Returns the caller's public IP address
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+# preStop "sleep" lifecycle action (no shell needed) is available from 1.30
+kubeVersion: ">=1.30.0-0"

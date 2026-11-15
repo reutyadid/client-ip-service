@@ -1,0 +1,15 @@
+{{ include "client-ip-service.fullname" . }} is deployed with image:
+  {{ include "client-ip-service.image" . }}
+
+{{- if .Values.httpRoute.enabled }}
+
+Exposed through the Gateway {{ range .Values.httpRoute.parentRefs }}{{ .namespace | default $.Release.Namespace }}/{{ .name }} {{ end }}
+On the local kind cluster:
+  curl http://localhost/
+{{- else }}
+
+No route is enabled. To reach the service locally:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "client-ip-service.fullname" . }} 8080:{{ .Values.service.port }}
+  curl http://localhost:8080/
+Behind port-forward there is no proxy, so the app sees 127.0.0.1.
+{{- end }}

@@ -1,0 +1,114 @@
+# Safe defaults. Environment-specific settings go in values-<env>.yaml.
+
+replicaCount: 2
+
+image:
+  repository: ghcr.io/reutyadid/client-ip-service
+  # Deploy by digest (immutable); CI sets it from the push job.
+  # The tag is used only when no digest is given. One of the two is required.
+  digest: ""
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# The GHCR image is public, so no pull secret is needed (decision 22).
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+
+# App configuration, passed as environment variables (see .env.example).
+config:
+  # Proxy IPs/CIDRs whose X-Forwarded-For is trusted. Never "*".
+  # Default trusts no proxy; set it to the range the gateway runs in.
+  forwardedAllowIps: "127.0.0.1"
+  # Serve /docs, /redoc and /openapi.json
+  docsEnabled: false
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532 # the image's built-in "nonroot" user
+  runAsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+# Measured: ~40Mi after 300 requests. No CPU limit: it would throttle a
+# latency-sensitive server without protecting anything that requests don't.
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 128Mi
+
+probes:
+  # Liveness: restart the container if the process stops answering.
+  liveness:
+    enabled: true
+    httpGet:
+      path: /health
+      port: http
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+  # Readiness: send traffic only to pods that report ready.
+  readiness:
+    enabled: true
+    httpGet:
+      path: /ready
+      port: http
+    periodSeconds: 5
+    timeoutSeconds: 2
+    failureThreshold: 3
+  # Startup: not needed, the app starts in under a second.
+  startup:
+    enabled: false
+    httpGet:
+      path: /health
+      port: http
+    periodSeconds: 2
+    failureThreshold: 30
+
+# Graceful shutdown: the kubelet sleeps before SIGTERM so endpoints are
+# removed from the gateway first. Runs in the kubelet, the image needs no shell.
+preStopSleepSeconds: 5
+terminationGracePeriodSeconds: 30
+
+service:
+  type: ClusterIP
+  port: 80
+
+# Gateway API route (decision 21). The Gateway itself belongs to the cluster
+# setup; this chart only attaches a route to it.
+httpRoute:
+  enabled: false
+  parentRefs:
+    - name: web
+      namespace: traefik
+  hostnames: []
+
+# Only the listed sources may reach the pods (decision 15, layer 3).
+networkPolicy:
+  enabled: false
+  from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: traefik
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: traefik
+
+# Keeps a pod running during voluntary disruptions such as a node drain.
+# Off by default: on a single-node cluster it would block the drain.
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
