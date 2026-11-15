@@ -44,7 +44,7 @@ def test_invalid_answers_are_rejected(raw):
 
 
 def test_sanitize_neutralizes_mentions():
-    assert "@​reutyadid" in sanitize("ping @reutyadid")
+    assert "@​octocat" in sanitize("ping @octocat")
 
 
 def test_sanitize_removes_images_and_link_targets():
