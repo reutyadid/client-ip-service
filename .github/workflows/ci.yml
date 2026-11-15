@@ -32,6 +32,8 @@ jobs:
         with:
           version: "0.13.6"
           enable-cache: true
+          # ubuntu-24.04 has no Python 3.14; cache the one uv downloads
+          cache-python: true
 
       - name: Install dependencies
         run: uv sync --locked
@@ -74,6 +76,8 @@ jobs:
         with:
           version: "0.13.6"
           enable-cache: true
+          # ubuntu-24.04 has no Python 3.14; cache the one uv downloads
+          cache-python: true
 
       - name: Install dependencies
         run: uv sync --locked
@@ -298,3 +302,46 @@ jobs:
           helm lint charts/client-ip-service --strict \
             -f charts/client-ip-service/values-staging.yaml \
             --set image.digest="$DIGEST"
+
+  # Runs only when an earlier job failed (decision 5). Reads the failed jobs'
+  # logs (including jobs on the self-hosted runner, whose logs are streamed to
+  # GitHub), asks a language model for a diagnosis, and posts it as one sticky
+  # PR comment plus the run summary. Logs are untrusted: the job never executes
+  # anything from the logs or the model, and its only secret is the optional
+  # AI_API_KEY for a non-GitHub provider (decision 24).
+  ai-diagnosis:
+    needs: [lint-python, lint-docker, test, build, scan, push, helm-lint]
+    if: failure()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read         # checkout of the private repo
+      actions: read          # list jobs and download their logs
+      models: read           # GitHub Models with the built-in token (decision 6)
+      pull-requests: write   # one sticky comment on the PR
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.6"
+          enable-cache: true
+          # ubuntu-24.04 has no Python 3.14; cache the one uv downloads
+          cache-python: true
+
+      - name: Install diagnosis dependencies
+        run: uv sync --locked --only-group ci
+
+      # Provider and model are repository variables, so they can be switched
+      # without a commit. AI_API_KEY is only needed for a non-GitHub provider.
+      - name: Diagnose the failure
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          OWN_JOB_NAME: ai-diagnosis
+          AI_API_BASE_URL: ${{ vars.AI_API_BASE_URL || 'https://models.github.ai/inference' }}
+          AI_MODEL: ${{ vars.AI_MODEL || 'openai/gpt-4.1-mini' }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+        run: uv run --no-sync python -m ci_diagnosis
