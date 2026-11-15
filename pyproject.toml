@@ -22,6 +22,10 @@ dev = [
     "pytest>=9.2.0",
     "ruff>=0.17.3",
 ]
+smoke = [
+    "httpx2>=2.16.0",
+    "pytest>=9.2.0",
+]
 
 [tool.uv]
 # Supply-chain cooldown: ignore package versions uploaded in the last 14 days.
@@ -47,5 +51,7 @@ select = [
 "tests/**" = ["S101", "S105", "S106"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+# Plain `pytest` runs the unit tests only. The smoke tests run against a
+# deployed environment, explicitly: `pytest tests/smoke`.
+testpaths = ["tests/unit"]
 pythonpath = ["."]
