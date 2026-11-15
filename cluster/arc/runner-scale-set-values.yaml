@@ -22,6 +22,10 @@ template:
     serviceAccountName: arc-runner
     securityContext:
       runAsNonRoot: true
+      # The image sets USER by name (runner), so the kubelet cannot check
+      # runAsNonRoot without a numeric ID. 1001 is runner's UID/GID in the image.
+      runAsUser: 1001
+      runAsGroup: 1001
       seccompProfile:
         type: RuntimeDefault
     containers:
