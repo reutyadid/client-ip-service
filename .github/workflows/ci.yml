@@ -242,6 +242,7 @@ jobs:
       packages: write
     outputs:
       image: ${{ steps.push.outputs.image }}
+      digest: ${{ steps.push.outputs.digest }}
     steps:
       - name: Download image artifact
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -266,6 +267,7 @@ jobs:
           # Deploy by digest: immutable, unlike a tag.
           image="$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE_NAME:$SHA")"
           echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "digest=${image#*@}" >> "$GITHUB_OUTPUT"
           echo "Pushed \`$image\`" >> "$GITHUB_STEP_SUMMARY"
 
   # Static chart checks; no cluster needed, so it runs on a GitHub runner.
@@ -284,5 +286,15 @@ jobs:
         with:
           version: v4.3.1
 
+      # Lint with the digest that was just pushed, against both the default
+      # values and the staging values that deploy will use. values.schema.json
+      # is enforced as part of lint.
       - name: Helm lint
-        run: helm lint charts/client-ip-service --strict
+        env:
+          DIGEST: ${{ needs.push.outputs.digest }}
+        run: |
+          helm lint charts/client-ip-service --strict \
+            --set image.digest="$DIGEST"
+          helm lint charts/client-ip-service --strict \
+            -f charts/client-ip-service/values-staging.yaml \
+            --set image.digest="$DIGEST"
