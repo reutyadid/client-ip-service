@@ -45,3 +45,9 @@ Problems hit while building this project: symptom, cause, and fix.
 - **Symptom:** `Error from server (AlreadyExists): namespaces "arc-runners" already exists` while creating the GitHub App secret.
 - **Cause:** the namespace already existed. `kubectl create` is not idempotent.
 - **Fix:** harmless; the next command still created the secret. In scripts, use `kubectl create ... --dry-run=client -o yaml | kubectl apply -f -`, as `cluster/setup*.sh` do.
+
+## ARC runner pod stuck in `CreateContainerConfigError`
+
+- **Symptom:** the first CI job on the `kind-staging` runner never started. The runner pod pulled its image, then stayed in `CreateContainerConfigError` with: `container has runAsNonRoot and image has non-numeric user (runner), cannot verify user is non-root`.
+- **Cause:** `runAsNonRoot: true` in `cluster/arc/runner-scale-set-values.yaml`. The `actions-runner` image sets `USER runner` by name, and the kubelet does not read `/etc/passwd` inside the image, so it cannot prove the user is not root and refuses to start the container. It only showed up on the first real job, because with `minRunners: 0` no runner pod existed before.
+- **Fix:** set the numeric IDs, `runAsUser: 1001` and `runAsGroup: 1001` (checked with `docker run --rm --entrypoint id <image>`), re-run `cluster/setup-arc.sh`, and delete the stuck pod so ARC recreates it from the new template. `runAsNonRoot` stays on.
