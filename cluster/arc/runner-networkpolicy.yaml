@@ -1,0 +1,11 @@
+# Nothing needs to connect to a runner pod: runners only make outbound
+# connections (GitHub, the API server, the gateway). Deny all inbound traffic.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-ingress
+  namespace: arc-runners
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress

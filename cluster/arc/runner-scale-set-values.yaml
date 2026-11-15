@@ -1,0 +1,41 @@
+# ARC runner scale set (decision 10). Workflow jobs use: runs-on: kind-staging
+githubConfigUrl: https://github.com/reutyadid/client-ip-service
+
+# GitHub App credentials, created by hand (never in git):
+#   kubectl -n arc-runners create secret generic github-app \
+#     --from-literal=github_app_id=... \
+#     --from-literal=github_app_installation_id=... \
+#     --from-file=github_app_private_key=/path/to/key.pem
+githubConfigSecret: github-app
+
+runnerScaleSetName: kind-staging
+
+# Ephemeral: one pod per job, none when idle
+minRunners: 0
+maxRunners: 2
+
+# containerMode is not set: jobs only run helm and kubectl, so no
+# Docker-in-Docker and no privileged pods.
+template:
+  spec:
+    # Bound to the "deployer" Role in staging (runner-rbac.yaml)
+    serviceAccountName: arc-runner
+    securityContext:
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault
+    containers:
+      - name: runner
+        # Pinned by version and digest
+        image: ghcr.io/actions/actions-runner:2.338.2@sha256:6d0b2d80d80f143f77dcb676e50920100bbb547e39e883454d57f45ab8c31300
+        command: ["/home/runner/run.sh"]
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: [ALL]
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            memory: 1Gi
