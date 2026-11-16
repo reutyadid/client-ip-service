@@ -3,32 +3,18 @@
 Project facts for Claude Code. The README covers what the project does and how
 to run it; this file covers what you need to change it safely.
 
-## Stack
-- Python 3.14, FastAPI, uvicorn. Dependencies with uv, locked in `uv.lock`.
-- Docker image on Docker Hardened Images (`dhi.io`), Helm 4 chart, kind cluster
-  with Traefik (Gateway API), GitHub Actions with a self-hosted ARC runner.
-
 ## Commands
 ```bash
-uv sync                                  # install all groups
-uv run pytest                            # unit tests only (testpaths = tests/unit)
-uv run ruff check . && uv run ruff format --check .
-helm lint charts/client-ip-service --strict --set image.tag=test
+helm lint charts/client-ip-service --strict --set image.tag=test   # needs an image tag or digest
 cluster/setup.sh                         # kind + Traefik + namespace staging (re-runnable)
 ```
-Smoke tests run against a deployment and need every variable, with no defaults:
+Plain `uv run pytest` runs only the unit tests. Smoke tests run against a
+deployment and need every variable, with no defaults:
 ```bash
 SMOKE_GATEWAY_URL=http://localhost SMOKE_NAMESPACE=staging \
 SMOKE_RELEASE=client-ip-service SMOKE_DIGEST=sha256:<deployed digest> \
 SMOKE_DOCS_ENABLED=true uv run --group smoke pytest tests/smoke
 ```
-
-## Where things are
-- `app/`: the service. `config.py` validates every setting; `main.py` wires
-  uvicorn's `ProxyHeadersMiddleware`.
-- `ci_diagnosis/`: the AI failure diagnosis job, tested in `tests/unit/ci_diagnosis/`.
-- `.github/workflows/ci.yml`: the whole pipeline.
-- `docs/decisions/`: ADRs. `docs/troubleshooting.md`: problems and their fixes.
 
 ## Conventions
 - **Commits:** imperative mood, capitalized, no `feat:`/`fix:` prefix, subject
