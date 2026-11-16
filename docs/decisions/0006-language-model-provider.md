@@ -1,6 +1,6 @@
 # ADR-0006: Language model provider: GitHub Models, without lock-in
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0027](0027-language-model-provider-groq.md)
 - **Date:** 2026-11-15
 
 ## Decision

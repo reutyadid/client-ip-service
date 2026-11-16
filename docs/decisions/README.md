@@ -10,7 +10,7 @@ alternatives that were considered. Code comments point here as `ADR-NNNN`.
 | [0003](0003-hardening-the-local-runner.md) | Hardening the local runner |
 | [0004](0004-repository-visibility.md) | Repository visibility: private during development, public at submission |
 | [0005](0005-ai-failure-diagnosis-as-the-last-ci-job.md) | AI failure diagnosis as the last CI job |
-| [0006](0006-language-model-provider.md) | Language model provider: GitHub Models, without lock-in |
+| [0006](0006-language-model-provider.md) | Language model provider: GitHub Models, without lock-in (superseded by 0027) |
 | [0007](0007-repository-name-client-ip-service.md) | Repository name: client-ip-service |
 | [0008](0008-development-environment.md) | Development environment |
 | [0009](0009-local-cluster-kind-on-docker-desktop-with-wsl2.md) | Local cluster: kind on Docker Desktop with WSL2 |
@@ -31,3 +31,4 @@ alternatives that were considered. Code comments point here as `ADR-NNNN`.
 | [0024](0024-ai-diagnosis-implementation.md) | AI diagnosis implementation |
 | [0025](0025-deploying-to-staging-with-helm.md) | Deploying to staging with Helm |
 | [0026](0026-smoke-tests.md) | Smoke tests |
+| [0027](0027-language-model-provider-groq.md) | Language model provider: Groq, after GitHub Models was retired |

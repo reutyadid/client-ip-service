@@ -34,8 +34,8 @@ writes is text in one PR comment and the run summary.
   failure notice. The job always succeeds and reports problems as warnings, so
   the original failure stays the only failure.
 - **Provider:** the official `openai` library against any OpenAI-compatible
-  API. Defaults in the workflow: GitHub Models and `openai/gpt-4.1-mini`. The
-  built-in token is only sent to `models.github.ai`.
+  API. Defaults in the workflow: Groq and `openai/gpt-oss-120b` (ADR-0027;
+  originally GitHub Models, see ADR-0006).
 
 ## Alternatives considered
 - GitHub's `actions/ai-inference`: it only sends a prompt. Log collection,
