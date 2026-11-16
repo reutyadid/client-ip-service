@@ -42,6 +42,9 @@ def sanitize(text: str) -> str:
     - Links keep only their text; reference definitions are dropped.
     - Bare URLs are defanged (https[:]//, www[.]) so they are not clickable.
     - @mentions get a zero-width space so nobody is notified.
+    - `*`, and `_` at a word edge, are backslash-escaped outside code spans,
+      so text such as test[*] is shown as written instead of turning into
+      emphasis. `_` inside a word (AI_API_KEY) never starts emphasis.
     """
     text = html.escape(text, quote=False)
     # Reference definitions: "[id]: https://..." on their own line
@@ -52,7 +55,26 @@ def sanitize(text: str) -> str:
     text = text.replace("://", "[:]//")
     text = re.sub(r"(?i)\bwww\.", "www[.]", text)
     text = re.sub(r"@(?=[A-Za-z0-9])", "@​", text)
+    text = _escape_emphasis(text)
     return text.strip()
+
+
+# An inline code span: a run of backticks, its content, the same run again.
+_CODE_SPAN = re.compile(r"(`+)(.+?)\1", re.S)
+# Characters that can start or end emphasis: any *, and _ not inside a word.
+_EMPHASIS = re.compile(r"\*|(?<![A-Za-z0-9])_|_(?![A-Za-z0-9])")
+
+
+def _escape_emphasis(text: str) -> str:
+    """Backslash-escape emphasis characters outside code spans. Inside a code
+    span a backslash would be shown literally, and emphasis never applies."""
+    parts, last = [], 0
+    for span in _CODE_SPAN.finditer(text):
+        parts.append(_EMPHASIS.sub(r"\\\g<0>", text[last : span.start()]))
+        parts.append(span.group(0))
+        last = span.end()
+    parts.append(_EMPHASIS.sub(r"\\\g<0>", text[last:]))
+    return "".join(parts)
 
 
 def _code_block(lines: list[str]) -> str:

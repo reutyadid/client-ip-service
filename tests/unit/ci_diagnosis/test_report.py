@@ -94,3 +94,14 @@ def test_sanitize_defangs_bare_urls():
     out = sanitize("Download https://evil.example/fix.sh or www.evil.example")
     assert "https://" not in out and "www.evil" not in out
     assert "https[:]//evil.example/fix.sh" in out
+
+
+def test_sanitize_keeps_asterisks_and_underscores_literal():
+    # The demo diagnosis lost the * in test[*]: "*" ... "*" became emphasis.
+    out = sanitize('test[*] failed: "*" was accepted; _not emphasis_, my_var')
+    assert out == 'test[\\*] failed: "\\*" was accepted; \\_not emphasis\\_, my_var'
+
+
+def test_sanitize_leaves_code_spans_unescaped():
+    out = sanitize("run `test_invalid[*]` again")
+    assert out == "run `test_invalid[*]` again"
