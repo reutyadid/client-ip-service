@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Installs Actions Runner Controller (ARC) into the kind cluster created by
-# setup.sh, plus a runner scale set for this repo (ADR-0010).
+# setup.sh, plus a runner scale set for this repo (ADR-0004).
 # Safe to re-run.
 #
 # Prerequisite: the GitHub App secret in namespace arc-runners (see

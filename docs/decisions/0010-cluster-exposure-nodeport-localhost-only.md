@@ -1,7 +1,12 @@
-# ADR-0023: Cluster exposure: NodePort, localhost only
+# ADR-0010: Cluster exposure: NodePort, localhost only
 
 - **Status:** Accepted
 - **Date:** 2026-11-15
+
+## Context
+Staging on kind must be reachable from this machine for manual checks and
+from the runner for the smoke tests. kind has no load balancer, and listening
+on every network interface would expose staging to the local network.
 
 ## Decision
 - `cluster/setup.sh` creates everything in one re-runnable command.

@@ -47,12 +47,16 @@ def build_user_content(jobs: list[FailedJob], excerpts: dict[int, str]) -> str:
     )
 
 
-def run(cfg: Config, gh: GitHubClient, llm: LLMClient) -> str:
-    """Build the report text. Never raises for model problems."""
+def run(cfg: Config, gh: GitHubClient, llm: LLMClient | None) -> str:
+    """Build the report text. Never raises for model problems. llm is None
+    when there is no API key."""
     jobs = gh.failed_jobs(cfg.run_id, exclude=cfg.own_job_name)
     if not jobs:
         return render_fallback([], cfg.run_url, "no failed job found")
     names = [job.name for job in jobs]
+    if llm is None:
+        # Secrets are not passed to pull requests from forks.
+        return render_fallback(names, cfg.run_url, "no AI_API_KEY for this run")
 
     # Keep only each excerpt, not the full logs (up to a few MB each).
     per_job = MAX_LOG_CHARS_TOTAL // len(jobs)
@@ -78,7 +82,11 @@ def main() -> int:
     try:
         cfg = load_config()
         gh = GitHubClient(cfg.github_api_url, cfg.github_token, cfg.repository)
-        llm = OpenAICompatibleClient(cfg.ai_base_url, cfg.ai_api_key, cfg.ai_model)
+        llm = (
+            OpenAICompatibleClient(cfg.ai_base_url, cfg.ai_api_key, cfg.ai_model)
+            if cfg.ai_api_key
+            else None
+        )
         report = run(cfg, gh, llm)
     except Exception as exc:  # noqa: BLE001
         warn(f"diagnosis failed: {type(exc).__name__}: {exc}")

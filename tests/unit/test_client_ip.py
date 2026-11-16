@@ -1,4 +1,4 @@
-"""Client-IP detection, including X-Forwarded-For spoofing attempts (ADR-0015)."""
+"""Client-IP detection, including X-Forwarded-For spoofing attempts (ADR-0005)."""
 
 from fastapi.testclient import TestClient
 
@@ -38,3 +38,23 @@ def test_spoofed_entry_before_proxy_entry_is_ignored():
     # Only the rightmost entry, added by the trusted proxy, counts.
     headers = {"X-Forwarded-For": "1.2.3.4, 203.0.113.7"}
     assert get_ip(TRAEFIK_POD, headers) == "203.0.113.7"
+
+
+def test_ipv6_client_address_is_returned():
+    headers = {"X-Forwarded-For": "2001:db8::1"}
+    assert get_ip(TRAEFIK_POD, headers) == "2001:db8::1"
+
+
+def test_chain_of_trusted_proxies_is_skipped():
+    # The client sent a forged "1.2.3.4". A first trusted proxy (10.244.0.9)
+    # appended the client's real address, and Traefik appended that proxy.
+    # Trusted hops are skipped from the right; the first untrusted one wins.
+    headers = {"X-Forwarded-For": "1.2.3.4, 203.0.113.7, 10.244.0.9"}
+    assert get_ip(TRAEFIK_POD, headers) == "203.0.113.7"
+
+
+def test_x_real_ip_header_is_never_used():
+    # Only X-Forwarded-For is read, from the right; X-Real-IP is a single
+    # value any client can set, so it is ignored even from the trusted proxy.
+    headers = {"X-Real-IP": "1.2.3.4"}
+    assert get_ip(TRAEFIK_POD, headers) == "10.244.0.5"

@@ -1,4 +1,4 @@
-# ADR-0021: Traffic routing: Gateway API with Traefik
+# ADR-0008: Traffic routing: Gateway API with Traefik
 
 - **Status:** Accepted
 - **Date:** 2026-11-15

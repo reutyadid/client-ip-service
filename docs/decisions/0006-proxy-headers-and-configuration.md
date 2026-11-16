@@ -1,4 +1,4 @@
-# ADR-0019: Proxy headers wired in code; configuration from the environment
+# ADR-0006: Proxy headers wired in code; configuration from the environment
 
 - **Status:** Accepted
 - **Date:** 2026-11-15

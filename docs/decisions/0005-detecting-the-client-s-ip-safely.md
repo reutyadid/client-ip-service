@@ -1,4 +1,4 @@
-# ADR-0015: Detecting the client's IP safely
+# ADR-0005: Detecting the client's IP safely
 
 - **Status:** Accepted
 - **Date:** 2026-11-15
@@ -15,7 +15,7 @@ Three layers:
 2. **App:** uvicorn's built-in `ProxyHeadersMiddleware` reads the header from
    the right and skips only trusted proxy addresses (`FORWARDED_ALLOW_IPS`,
    set to the pod CIDR in staging, never `*`). The app returns
-   `request.client.host` and never parses the header itself. See ADR-0019 for
+   `request.client.host` and never parses the header itself. See ADR-0006 for
    how it is wired and validated.
 3. **NetworkPolicy:** because the whole pod CIDR is trusted, a compromised pod
    could forge the header. A NetworkPolicy lets only the gateway reach the app.

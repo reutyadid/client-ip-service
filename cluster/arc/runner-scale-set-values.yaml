@@ -1,4 +1,4 @@
-# ARC runner scale set (ADR-0010). Workflow jobs use: runs-on: kind-staging
+# ARC runner scale set (ADR-0004). Workflow jobs use: runs-on: kind-staging
 githubConfigUrl: https://github.com/reutyadid/client-ip-service
 
 # GitHub App credentials, created by hand (never in git):
