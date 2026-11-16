@@ -486,7 +486,6 @@ jobs:
     permissions:
       contents: read         # checkout of the private repo
       actions: read          # list jobs and download their logs
-      models: read           # GitHub Models with the built-in token (ADR-0006)
       pull-requests: write   # one sticky comment on the PR
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -503,14 +502,15 @@ jobs:
       - name: Install diagnosis dependencies
         run: uv sync --locked --only-group ci
 
-      # Provider and model are repository variables, so they can be switched
-      # without a commit. AI_API_KEY is only needed for a non-GitHub provider.
+      # Defaults: Groq and openai/gpt-oss-120b (ADR-0027). Repository variables
+      # override them, so a retired model is replaced without a commit.
+      # Without AI_API_KEY (e.g. PRs from forks) a plain failure notice is posted.
       - name: Diagnose the failure
         env:
           GITHUB_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           OWN_JOB_NAME: ai-diagnosis
-          AI_API_BASE_URL: ${{ vars.AI_API_BASE_URL || 'https://models.github.ai/inference' }}
-          AI_MODEL: ${{ vars.AI_MODEL || 'openai/gpt-4.1-mini' }}
+          AI_API_BASE_URL: ${{ vars.AI_API_BASE_URL || 'https://api.groq.com/openai/v1' }}
+          AI_MODEL: ${{ vars.AI_MODEL || 'openai/gpt-oss-120b' }}
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
         run: uv run --no-sync python -m ci_diagnosis

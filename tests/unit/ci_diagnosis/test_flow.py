@@ -8,6 +8,7 @@ import pytest
 from ci_diagnosis import __main__ as diagnose
 from ci_diagnosis.config import Config
 from ci_diagnosis.github import FailedJob
+from ci_diagnosis.llm import OpenAICompatibleClient
 
 VALID = json.dumps(
     {
@@ -96,6 +97,39 @@ def test_log_cannot_close_the_untrusted_block(cfg):
     diagnose.run(cfg, FakeGitHub([DEPLOY], {1: log}), llm)
     assert llm.seen.count("</job_log>") == 1  # only our own closing tag
     assert "&lt;/job_log&gt;" in llm.seen
+
+
+def test_without_api_key_falls_back_without_calling_a_model(cfg):
+    # Arrange: secrets are not passed to pull requests from forks
+    gh = FakeGitHub([DEPLOY], {1: LOG})
+    # Act
+    report = diagnose.run(cfg, gh, None)
+    # Assert
+    assert "no AI_API_KEY" in report and "- deploy" in report
+
+
+def test_main_skips_the_model_client_without_api_key(cfg, monkeypatch):
+    no_key = dataclasses.replace(cfg, ai_api_key="")
+    monkeypatch.setattr(diagnose, "load_config", lambda: no_key)
+    monkeypatch.setattr(
+        diagnose, "GitHubClient", lambda *a: FakeGitHub([DEPLOY], {1: LOG})
+    )
+
+    def no_client(*args):
+        raise AssertionError("must not build a model client without a key")
+
+    monkeypatch.setattr(diagnose, "OpenAICompatibleClient", no_client)
+    assert diagnose.main() == 0
+    assert "no AI_API_KEY" in open(no_key.step_summary_path).read()
+
+
+def test_non_json_api_answer_raises_a_clear_error(monkeypatch):
+    # Arrange: what the SDK returns when a server answers 200 text/plain
+    client = OpenAICompatibleClient("https://api.example/v1", "k", "m")
+    monkeypatch.setattr(client._client.chat.completions, "create", lambda **kw: "OK")
+    # Act / Assert
+    with pytest.raises(TypeError, match="check AI_API_BASE_URL"):
+        client.complete("system", "user")
 
 
 def test_timed_out_job_is_listed(cfg):

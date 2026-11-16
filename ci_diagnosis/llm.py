@@ -1,14 +1,15 @@
 """Language model access behind one small interface (ADR-0006).
 
 Any provider with an OpenAI-compatible chat API works by changing the
-AI_API_BASE_URL and AI_MODEL repository variables, without a commit: GitHub
-Models, Ollama, OpenAI, and many others. A provider without that API needs one
+AI_API_BASE_URL and AI_MODEL repository variables, without a commit: Groq,
+Ollama, OpenAI, and many others. A provider without that API needs one
 new class implementing LLMClient.
 """
 
 from typing import Protocol
 
 from openai import OpenAI
+from openai.types.chat import ChatCompletion
 
 
 class LLMClient(Protocol):
@@ -39,4 +40,11 @@ class OpenAICompatibleClient:
             temperature=0.2,
             max_tokens=1200,
         )
+        # A server that answers 200 with non-JSON (e.g. a retired endpoint's
+        # placeholder page) makes the SDK return a plain str, not an error.
+        if not isinstance(response, ChatCompletion):
+            raise TypeError(
+                f"the API returned {type(response).__name__}, not a chat "
+                "completion; check AI_API_BASE_URL"
+            )
         return response.choices[0].message.content or ""

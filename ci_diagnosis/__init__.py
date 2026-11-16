@@ -5,6 +5,6 @@ jobs' logs, asks a language model for a structured diagnosis, and posts it as
 one sticky PR comment and in the run summary.
 
 Logs are untrusted input. The job never executes anything from the logs or
-the model's answer, only publishes sanitized text, and its only secret is the
-optional AI_API_KEY for a non-GitHub provider.
+the model's answer, only publishes sanitized text, and its only secret is
+AI_API_KEY, the model provider's API key.
 """
