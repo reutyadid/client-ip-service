@@ -15,84 +15,23 @@ with Helm, and asks a language model to diagnose any failure.
 
 ## Run locally
 
-Tested with Docker 29.9, kind 0.33, kubectl 1.37, Helm 4.3 and uv 0.13 on
-WSL2.
-
-### 1. The app on its own
-
-Requires [uv](https://docs.astral.sh/uv/).
+On a kind cluster. Requires Docker, kind, kubectl, Helm, and a free Docker Hub
+account for the base images.
 
 ```bash
-uv sync
-cp .env.example .env
-uv run --env-file .env uvicorn --factory app.main:app_from_env --no-proxy-headers --reload
-```
-
-```bash
-curl http://localhost:8000/        # {"ip":"127.0.0.1"}
-curl http://localhost:8000/health  # {"status":"ok"}
-curl http://localhost:8000/ready   # {"status":"ready"}
-```
-
-Unit tests:
-
-```bash
-uv run pytest
-```
-
-### 2. The container image
-
-The base images come from Docker Hardened Images, which needs a free Docker
-Hub account ([ADR-0007](docs/decisions/0007-base-image-docker-hardened-images.md)).
-
-```bash
+cluster/setup.sh                       # kind, Gateway API, Traefik, namespace staging
 docker login dhi.io
 docker build -t client-ip-service:local .
-docker run --rm -p 8000:8000 \
-  -e FORWARDED_ALLOW_IPS=127.0.0.1 -e DOCS_ENABLED=false \
-  client-ip-service:local
-```
-
-### 3. On Kubernetes (kind)
-
-Requires Docker, kind, kubectl and Helm. `cluster/setup.sh` creates a kind
-cluster, installs the Gateway API CRDs and Traefik, and creates the `staging`
-namespace. It is safe to re-run.
-
-```bash
-cluster/setup.sh
-```
-
-This is all a local run needs. The CI runner is installed separately by
-`cluster/setup-arc.sh`, only to deploy through CI (see
-[Deploy through CI in your own fork](#deploy-through-ci-in-your-own-fork)).
-
-Load the image built in step 2 into the cluster and deploy it with the chart:
-
-```bash
 kind load docker-image client-ip-service:local --name client-ip
-
 helm upgrade --install client-ip-service charts/client-ip-service \
-  --namespace staging \
-  --values charts/client-ip-service/values-staging.yaml \
-  --set image.repository=client-ip-service \
-  --set image.tag=local \
-  --set image.pullPolicy=Never \
-  --set-json 'imagePullSecrets=[]' \
-  --wait
+  --namespace staging --values charts/client-ip-service/values-staging.yaml \
+  --set image.repository=client-ip-service --set image.tag=local \
+  --set image.pullPolicy=Never --set-json 'imagePullSecrets=[]' --wait
+curl http://localhost/                 # {"ip":"172.19.0.1"}: the Docker network, not your public IP
+curl http://localhost/health           # {"status":"ok"}
 ```
 
-Traefik listens on `localhost:80`, on this machine only
-([ADR-0010](docs/decisions/0010-cluster-exposure-nodeport-localhost-only.md)):
-
-```bash
-kubectl -n staging get pods
-curl http://localhost/        # e.g. {"ip":"172.19.0.1"}
-curl http://localhost/health
-```
-
-On kind, `/` returns the Docker network's gateway address, not your public
-IP: the request never leaves the machine.
+No CI runner is needed for this; it is installed only to deploy through CI.
 
 ## How CI works
 
@@ -149,7 +88,7 @@ name must be lowercase, as GHCR requires.
 **1. Fork the repository** and enable workflows in its **Actions** tab (GitHub
 disables them on forks).
 
-**2. Create the cluster** (as in [Run locally](#3-on-kubernetes-kind)):
+**2. Create the cluster** (as in [Run locally](#run-locally)):
 
 ```bash
 cluster/setup.sh
@@ -174,15 +113,8 @@ set `githubConfigUrl: https://github.com/<you>/client-ip-service`. Then:
 cluster/setup-arc.sh
 ```
 
-**4. Add the secrets and variables** under **Settings → Secrets and variables
-→ Actions** (see [Secrets](#secrets)):
-
-| Name | Kind | Value |
-|---|---|---|
-| `DOCKERHUB_USERNAME` | Variable | Your Docker Hub user, to pull the base images |
-| `DOCKERHUB_TOKEN` | Secret | A read-only Docker Hub access token |
-| `GHCR_PULL_TOKEN` | Secret | A classic GitHub token with only `read:packages`, for the cluster to pull your image |
-| `AI_API_KEY` | Secret | A [Groq](https://console.groq.com/keys) API key. Optional: without it, failures get a plain notice |
+**4. Add the GitHub secrets and variable** listed in [Secrets](#secrets),
+under **Settings → Secrets and variables → Actions**.
 
 **5. Push to `main`.** The pipeline pushes the image to
 `ghcr.io/<you>/client-ip-service` and deploys it to your `staging` namespace.
@@ -195,22 +127,15 @@ curl http://localhost/
 
 ## Where the image is published
 
-GitHub Container Registry:
-
 ```
 ghcr.io/reutyadid/client-ip-service:<full commit SHA>
 ```
 
-The name comes from the repository: CI builds it as
-`ghcr.io/${{ github.repository }}` (`IMAGE_NAME` in `ci.yml`) and passes it to
-Helm, so a fork publishes to `ghcr.io/<you>/client-ip-service` with no change.
-The `image.repository` in `values.yaml` is only the default for a manual
-`helm install`; in a fork, set it to your image there or with `--set`.
-
-The package is private; the cluster pulls it with a read-only token
-([ADR-0009](docs/decisions/0009-private-image-pull-token.md)). `deploy` uses the
-digest that `push` produced, so staging runs exactly the bytes that were
-scanned.
+GitHub Container Registry, private; the cluster pulls it with a read-only token
+([ADR-0009](docs/decisions/0009-private-image-pull-token.md)). The name follows
+the repository (`ghcr.io/${{ github.repository }}`), so a fork publishes to its
+own. `deploy` uses the digest that `push` produced, so staging runs exactly the
+image that was scanned.
 
 ## Image scan and SBOM
 
@@ -240,9 +165,9 @@ No secret is in the chart or in git. The app itself needs none.
 
 | Secret | Where it lives | Used by |
 |---|---|---|
-| `DOCKERHUB_TOKEN` (and variable `DOCKERHUB_USERNAME`) | GitHub Actions secret | `build`, to pull the base images |
-| `GHCR_PULL_TOKEN` | GitHub Actions secret | `deploy`, which turns it into the Kubernetes Secret `staging/ghcr-pull` for pulling the image |
-| `AI_API_KEY` (and variables `AI_API_BASE_URL`, `AI_MODEL`) | GitHub Actions secret | `ai-diagnosis` |
+| `DOCKERHUB_TOKEN` (and variable `DOCKERHUB_USERNAME`) | GitHub Actions secret: a read-only Docker Hub token | `build`, to pull the base images |
+| `GHCR_PULL_TOKEN` | GitHub Actions secret: a classic token with only `read:packages` | `deploy`, which turns it into the Kubernetes Secret `staging/ghcr-pull` for pulling the image |
+| `AI_API_KEY` (and optional variables `AI_API_BASE_URL`, `AI_MODEL`) | GitHub Actions secret: a [Groq](https://console.groq.com/keys) API key | `ai-diagnosis`; without it, failures get a plain notice |
 | `github-app` | Kubernetes Secret in `arc-runners`, created by hand | The ARC runner, to register with GitHub (command in `cluster/arc/runner-scale-set-values.yaml`) |
 
 To add a secret to the app later, create a Kubernetes Secret outside the chart
