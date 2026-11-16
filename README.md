@@ -106,7 +106,7 @@ When a job fails, the last job sends the failed jobs' logs to a language model
 (`openai/gpt-oss-120b` on Groq) and posts the likely cause and a fix in the run
 summary and as a pull request comment. Example:
 [pull request #1](https://github.com/reutyadid/client-ip-service/pull/1) and its
-[failed run](https://github.com/reutyadid/client-ip-service/actions/runs/43772178192)
+[failed run](https://github.com/reutyadid/client-ip-service/actions/runs/43870297368)
 ([ADR-0003](docs/decisions/0003-ai-failure-diagnosis.md),
 [ADR-0011](docs/decisions/0011-language-model-provider-groq.md)).
 
