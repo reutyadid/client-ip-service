@@ -51,3 +51,15 @@ Problems hit while building this project: symptom, cause, and fix.
 - **Symptom:** the first CI job on the `kind-staging` runner never started. The runner pod pulled its image, then stayed in `CreateContainerConfigError` with: `container has runAsNonRoot and image has non-numeric user (runner), cannot verify user is non-root`.
 - **Cause:** `runAsNonRoot: true` in `cluster/arc/runner-scale-set-values.yaml`. The `actions-runner` image sets `USER runner` by name, and the kubelet does not read `/etc/passwd` inside the image, so it cannot prove the user is not root and refuses to start the container. It only showed up on the first real job, because with `minRunners: 0` no runner pod existed before.
 - **Fix:** set the numeric IDs, `runAsUser: 1001` and `runAsGroup: 1001` (checked with `docker run --rm --entrypoint id <image>`), re-run `cluster/setup-arc.sh`, and delete the stuck pod so ARC recreates it from the new template. `runAsNonRoot` stays on.
+
+## AI diagnosis fails with `'str' object has no attribute 'choices'`
+
+- **Symptom:** the AI diagnosis posted only its fallback notice, "the model could not be reached", with the warning `AttributeError: 'str' object has no attribute 'choices'`.
+- **Cause:** GitHub Models, the provider at the time, was retired on 2026-07-30. Its endpoint answers every request, with or without a token, with `200 text/plain` and the body `OK`. The `openai` library does not raise on a 200 that is not JSON; it returns the body as a plain string.
+- **Fix:** switched to Groq by changing the repository variables and adding `AI_API_KEY` (ADR-0011). The client now checks that the answer is a chat completion and otherwise fails with a clear error that points to `AI_API_BASE_URL`.
+
+## Groq answers `404` for `llama-3.3-70b-versatile`
+
+- **Symptom:** right after switching to Groq: `NotFoundError: Error code: 404 - The model 'llama-3.3-70b-versatile' does not exist or you do not have access to it`.
+- **Cause:** Groq retired the model on 2026-08-16. Its model list page still showed it as a production model; only the deprecations page had the shutdown date.
+- **Fix:** set the `AI_MODEL` repository variable to `openai/gpt-oss-120b`, Groq's recommended replacement. No commit needed. When choosing a model, check the provider's deprecations page, not only its model list.

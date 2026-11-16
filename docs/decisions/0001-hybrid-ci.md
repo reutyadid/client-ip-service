@@ -19,3 +19,7 @@ so it runs on a GitHub-hosted runner, after push, as in the assignment's order.
 - The local machine runs as little untrusted code as possible.
 - Heavy work (builds, scans) does not compete with the cluster for memory.
 - If the local runner is offline, deploy jobs wait in the queue instead of failing.
+- Pull requests from this repository deploy to the same `staging` namespace as
+  `main`, so staging shows the last deployed change until the next push to
+  `main`. Deploys queue and never run at once. In production, each pull request
+  would get its own short-lived namespace, deleted when it closes.
