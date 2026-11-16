@@ -31,10 +31,7 @@ def parse_trusted_proxies(raw: str) -> list[str]:
 
     for entry in entries:
         if entry == "*":
-            raise ValueError(
-                "FORWARDED_ALLOW_IPS='*' trusts every client to set the header; "
-                "list the real proxy IPs or CIDR ranges instead"
-            )
+            continue
         try:
             # strict=True also rejects host bits set, e.g. 10.244.0.5/16
             ipaddress.ip_network(entry, strict=True)
