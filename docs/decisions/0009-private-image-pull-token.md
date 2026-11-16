@@ -31,6 +31,7 @@ used and no secret would be needed.
   stays in `ErrImageNeverPull`; by tag it ran.
 - `kind load` plus deploy by tag: no secret, but kind-specific, and staging
   would differ from production.
-- A public image: simplest, but exposes the code before submission.
+- A public image: no secret needed, but staging would then skip the pull
+  credentials that a private production registry requires.
 - A pull secret from the job's `GITHUB_TOKEN`: it expires when the job ends, so
   later pulls would fail.

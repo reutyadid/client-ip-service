@@ -30,6 +30,10 @@ curl http://localhost/                 # {"ip":"172.19.0.1"}: the Docker network
 curl http://localhost/health           # {"status":"ok"}
 ```
 
+Requests reach the app through Traefik and an HTTPRoute (Gateway API), which
+the chart uses instead of an Ingress
+([ADR-0008](docs/decisions/0008-traffic-routing-gateway-api-with-traefik.md)).
+
 ## How CI works
 
 `.github/workflows/ci.yml` runs on every push to `main` and on every pull

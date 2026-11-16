@@ -15,7 +15,7 @@ and stay compromised between jobs.
   `staging` namespace only (`cluster/arc/runner-rbac.yaml`).
 - Repository setting that requires approval for workflows from outside
   contributors, enabled before the repository is made public.
-- The runner is stopped when it isn't needed.
+- No runner pod exists while no job is running (`minRunners: 0`).
 
 ## Consequences
 A compromised job cannot persist on the runner, read secrets outside `staging`

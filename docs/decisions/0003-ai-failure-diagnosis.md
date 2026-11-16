@@ -39,8 +39,8 @@ one PR comment.
   suggested fix, confidence, evidence), validated with Pydantic.
 - **Output sanitizing:** HTML escaped; images removed (loading one could leak
   data through its URL); links reduced to text; bare URLs defanged; `@mentions`
-  neutralized; evidence lines in a code block whose fence is longer than any
-  backtick run inside.
+  neutralized; `*` and `_` escaped so they cannot turn into emphasis; evidence
+  lines in a code block whose fence is longer than any backtick run inside.
 - **Publishing:** always in the run summary; on a PR, one comment found by a
   hidden marker and the bot author, updated on every failure, with a link to
   the run. On `main` without a PR, the run summary only.

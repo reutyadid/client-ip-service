@@ -1,7 +1,8 @@
 # Architecture Decision Records
 
 Each file records one decision: the context, what was decided, why, and,
-where there were any, the alternatives that were considered. Code comments point here as `ADR-NNNN`.
+where there were any, the alternatives that were considered. Code comments
+point here as `ADR-NNNN`.
 
 | ADR | Decision |
 |---|---|

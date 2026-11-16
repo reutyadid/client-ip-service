@@ -22,7 +22,9 @@ Three layers:
 
 ## Verified
 - Unit tests: a header from an untrusted client is ignored; from the trusted
-  proxy it is used; `1.2.3.4, 203.0.113.7` resolves to `203.0.113.7`.
+  proxy it is used; `1.2.3.4, 203.0.113.7` resolves to `203.0.113.7`; a chain
+  of trusted proxies is skipped; IPv6 addresses work; `X-Real-IP` is never
+  read, since any client can set it and it carries no chain of hops.
 - On kind: a forged header sent through the gateway was ignored. A pod in
   `staging` that sent a forged header directly to the app was blocked by the
   NetworkPolicy; without the policy it got `{"ip":"1.2.3.4"}`.

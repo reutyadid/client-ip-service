@@ -46,9 +46,9 @@ Its endpoint now answers every request with `200 text/plain` and the body
   `high` confidence (demo PR, branch `demo/ai-diagnosis`).
 
 ## Consequences
-- Keeping the provider in configuration held twice: GitHub Models was replaced, and then
-  `llama-3.3-70b-versatile` (retired by Groq on 2026-08-16) was replaced, each
-  by changing configuration only.
+- Keeping the provider in configuration held twice: GitHub Models was
+  replaced, and then `llama-3.3-70b-versatile` (retired by Groq on
+  2026-08-16) was replaced, each by changing configuration only.
 - Free models are retired quickly. Check the provider's deprecation page when
   choosing a model, not only its model list.
 - The model only sees logs, not code: it finds what failed, but may miss why
