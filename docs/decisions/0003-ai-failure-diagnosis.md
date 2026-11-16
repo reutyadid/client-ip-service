@@ -1,4 +1,4 @@
-# ADR-0005: AI failure diagnosis
+# ADR-0003: AI failure diagnosis
 
 - **Status:** Accepted
 - **Date:** 2026-11-15
@@ -48,7 +48,7 @@ one PR comment.
   a plain failure notice. The job always succeeds and reports problems as
   warnings, so the original failure stays the only failure.
 - **Provider:** the official `openai` library against any OpenAI-compatible
-  API, chosen through repository variables (ADR-0027).
+  API, chosen through repository variables (ADR-0011).
 
 ## Consequences
 - The model sees logs, not code: it finds what failed, but may miss why it

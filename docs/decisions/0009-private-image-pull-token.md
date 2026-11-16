@@ -1,4 +1,4 @@
-# ADR-0022: Pulling the private image: a dedicated read-only token
+# ADR-0009: Pulling the private image: a dedicated read-only token
 
 - **Status:** Accepted
 - **Date:** 2026-11-15

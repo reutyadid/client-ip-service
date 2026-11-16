@@ -1,10 +1,10 @@
-# ADR-0027: Language model provider: Groq, after GitHub Models was retired
+# ADR-0011: Language model provider: Groq, after GitHub Models was retired
 
 - **Status:** Accepted
 - **Date:** 2026-11-16
 
 ## Context
-The AI diagnosis (ADR-0005) first used GitHub Models: no cost, and the
+The AI diagnosis (ADR-0003) first used GitHub Models: no cost, and the
 workflow's built-in token as the key. GitHub Models was retired on 2026-07-30.
 Its endpoint now answers every request with `200 text/plain` and the body
 `OK`, so the AI diagnosis failed with `'str' object has no attribute
@@ -16,8 +16,9 @@ Its endpoint now answers every request with `200 text/plain` and the body
   (`AI_API_BASE_URL`, `AI_MODEL`). A provider without that API needs one new
   class. The prompt is a separate file in git.
 - Provider: Groq, through its OpenAI-compatible API
-  (`https://api.groq.com/openai/v1`). No code change was needed, only the
-  repository variables and the `AI_API_KEY` secret.
+  (`https://api.groq.com/openai/v1`). Switching needed no code change, only
+  the repository variables and the `AI_API_KEY` secret. The workflow defaults
+  and a clearer error for non-JSON answers were added afterwards.
 - Model: `openai/gpt-oss-120b`.
 - Both are defaults in the workflow, so the repository shows what runs.
   Repository variables still override them.

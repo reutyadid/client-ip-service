@@ -1,4 +1,4 @@
-"""Client-IP detection, including X-Forwarded-For spoofing attempts (ADR-0015)."""
+"""Client-IP detection, including X-Forwarded-For spoofing attempts (ADR-0005)."""
 
 from fastapi.testclient import TestClient
 

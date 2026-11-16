@@ -1,4 +1,4 @@
-"""Language model access behind one small interface (ADR-0027).
+"""Language model access behind one small interface (ADR-0011).
 
 Any provider with an OpenAI-compatible chat API works by changing the
 AI_API_BASE_URL and AI_MODEL repository variables, without a commit: Groq,

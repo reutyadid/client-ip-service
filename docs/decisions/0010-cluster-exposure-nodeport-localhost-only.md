@@ -1,4 +1,4 @@
-# ADR-0023: Cluster exposure: NodePort, localhost only
+# ADR-0010: Cluster exposure: NodePort, localhost only
 
 - **Status:** Accepted
 - **Date:** 2026-11-15

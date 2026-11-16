@@ -1,4 +1,4 @@
-# ADR-0010: Local runner: Actions Runner Controller (ARC)
+# ADR-0004: Local runner: Actions Runner Controller (ARC)
 
 - **Status:** Accepted
 - **Date:** 2026-11-15

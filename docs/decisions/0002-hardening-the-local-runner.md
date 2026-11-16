@@ -1,4 +1,4 @@
-# ADR-0003: Hardening the local runner
+# ADR-0002: Hardening the local runner
 
 - **Status:** Accepted
 - **Date:** 2026-11-15
@@ -20,4 +20,4 @@ and stay compromised between jobs.
 ## Consequences
 A compromised job cannot persist on the runner, read secrets outside `staging`
 (including the GitHub App key), or act at cluster scope. Verified with
-`kubectl auth can-i` (see ADR-0010).
+`kubectl auth can-i` (see ADR-0004).

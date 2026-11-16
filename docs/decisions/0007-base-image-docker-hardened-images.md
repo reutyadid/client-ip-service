@@ -1,4 +1,4 @@
-# ADR-0020: Base image: Docker Hardened Images
+# ADR-0007: Base image: Docker Hardened Images
 
 - **Status:** Accepted
 - **Date:** 2026-11-15

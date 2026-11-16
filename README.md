@@ -43,7 +43,7 @@ uv run pytest
 ### 2. The container image
 
 The base images come from Docker Hardened Images, which needs a free Docker
-Hub account ([ADR-0020](docs/decisions/0020-base-image-docker-hardened-images.md)).
+Hub account ([ADR-0007](docs/decisions/0007-base-image-docker-hardened-images.md)).
 
 ```bash
 docker login dhi.io
@@ -83,7 +83,7 @@ helm upgrade --install client-ip-service charts/client-ip-service \
 ```
 
 Traefik listens on `localhost:80`, on this machine only
-([ADR-0023](docs/decisions/0023-cluster-exposure-nodeport-localhost-only.md)):
+([ADR-0010](docs/decisions/0010-cluster-exposure-nodeport-localhost-only.md)):
 
 ```bash
 kubectl -n staging get pods
@@ -100,8 +100,8 @@ IP: the request never leaves the machine.
 request. Most jobs run on GitHub-hosted runners. `deploy` and `smoke-test` run
 on a self-hosted runner inside the kind cluster, so the cluster is never
 exposed to the internet
-([ADR-0002](docs/decisions/0002-hybrid-ci.md),
-[ADR-0010](docs/decisions/0010-local-runner-actions-runner-controller-arc.md)).
+([ADR-0001](docs/decisions/0001-hybrid-ci.md),
+[ADR-0004](docs/decisions/0004-local-runner-actions-runner-controller-arc.md)).
 
 ```mermaid
 flowchart LR
@@ -208,7 +208,7 @@ The `image.repository` in `values.yaml` is only the default for a manual
 `helm install`; in a fork, set it to your image there or with `--set`.
 
 The package is private; the cluster pulls it with a read-only token
-([ADR-0022](docs/decisions/0022-private-image-pull-token.md)). `deploy` uses the
+([ADR-0009](docs/decisions/0009-private-image-pull-token.md)). `deploy` uses the
 digest that `push` produced, so staging runs exactly the bytes that were
 scanned.
 
@@ -231,8 +231,8 @@ When a job fails, the last job sends the failed jobs' logs to a language model
 summary and as a pull request comment. Example:
 [pull request #1](https://github.com/reutyadid/client-ip-service/pull/1) and its
 [failed run](https://github.com/reutyadid/client-ip-service/actions/runs/43772178192)
-([ADR-0005](docs/decisions/0005-ai-failure-diagnosis.md),
-[ADR-0027](docs/decisions/0027-language-model-provider-groq.md)).
+([ADR-0003](docs/decisions/0003-ai-failure-diagnosis.md),
+[ADR-0011](docs/decisions/0011-language-model-provider-groq.md)).
 
 ## Secrets
 
