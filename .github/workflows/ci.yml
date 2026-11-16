@@ -380,11 +380,14 @@ jobs:
       # --rollback-on-failure: waits for the rollout and returns to the last
       # working release if it fails, so staging is never left half-deployed.
       # --history-max: keeps the release history (stored as Secrets) bounded.
+      # image.repository comes from the same IMAGE_NAME the push job used, so
+      # a fork deploys its own image, not the one named in values.yaml.
       - name: Deploy with Helm
         run: |
           helm upgrade --install "$RELEASE" charts/client-ip-service \
             --namespace "$NAMESPACE" \
             --values charts/client-ip-service/values-staging.yaml \
+            --set image.repository="$IMAGE_NAME" \
             --set image.digest="$DIGEST" \
             --rollback-on-failure --wait --timeout 3m \
             --history-max 10
