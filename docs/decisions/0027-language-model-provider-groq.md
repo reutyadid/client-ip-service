@@ -2,15 +2,19 @@
 
 - **Status:** Accepted
 - **Date:** 2026-11-16
-- **Supersedes:** [ADR-0006](0006-language-model-provider.md)
 
 ## Context
-GitHub Models, the default provider in ADR-0006, was retired on 2026-07-30.
+The AI diagnosis (ADR-0005) first used GitHub Models: no cost, and the
+workflow's built-in token as the key. GitHub Models was retired on 2026-07-30.
 Its endpoint now answers every request with `200 text/plain` and the body
 `OK`, so the AI diagnosis failed with `'str' object has no attribute
 'choices'` and posted only the fallback notice.
 
 ## Decision
+- The code talks to any OpenAI-compatible chat API through one small
+  interface, `LLMClient`; the base URL and the model are repository variables
+  (`AI_API_BASE_URL`, `AI_MODEL`). A provider without that API needs one new
+  class. The prompt is a separate file in git.
 - Provider: Groq, through its OpenAI-compatible API
   (`https://api.groq.com/openai/v1`). No code change was needed, only the
   repository variables and the `AI_API_KEY` secret.
@@ -28,7 +32,7 @@ Its endpoint now answers every request with `200 text/plain` and the body
 | Criterion | Why it matters | Groq |
 |---|---|---|
 | Free, no credit card | A demo project; a leaked key costs no money | Yes |
-| OpenAI-compatible API | No code change behind `LLMClient` (ADR-0006) | Yes |
+| OpenAI-compatible API | No code change behind `LLMClient` | Yes |
 | JSON mode | The diagnosis is JSON validated against a schema | All models |
 | Limits fit one request per failed run (~4K tokens) | | 8K tokens/min, 1K requests/day |
 
@@ -41,7 +45,7 @@ Its endpoint now answers every request with `200 text/plain` and the body
   `high` confidence (demo PR, branch `demo/ai-diagnosis`).
 
 ## Consequences
-- The design from ADR-0006 held twice: GitHub Models was replaced, and then
+- Keeping the provider in configuration held twice: GitHub Models was replaced, and then
   `llama-3.3-70b-versatile` (retired by Groq on 2026-08-16) was replaced, each
   by changing configuration only.
 - Free models are retired quickly. Check the provider's deprecation page when

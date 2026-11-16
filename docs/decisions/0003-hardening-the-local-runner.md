@@ -3,6 +3,12 @@
 - **Status:** Accepted
 - **Date:** 2026-11-15
 
+## Context
+The local runner runs inside the cluster it deploys to, and every CI job,
+including jobs from pull requests, runs code on it. GitHub warns that on a
+public repository a self-hosted runner can be compromised by untrusted code
+and stay compromised between jobs.
+
 ## Decision
 - Ephemeral runners: a fresh pod per job, deleted when the job ends.
 - Minimal cluster permissions: a Role that manages the app's resources in the

@@ -158,7 +158,7 @@ jobs:
           if-no-files-found: error
 
   # Scan the exact image built above. Gate on fixable CRITICAL/HIGH findings
-  # (ADR-0013); justified exceptions go in .trivyignore, which Trivy reads
+  # (see README); justified exceptions go in .trivyignore, which Trivy reads
   # automatically.
   scan:
     needs: build
@@ -326,7 +326,7 @@ jobs:
     needs: [push, helm-lint]
     runs-on: kind-staging
     timeout-minutes: 10
-    # A deployment record on the repository page (ADR-0012)
+    # A deployment record on the repository page (notification)
     environment:
       name: staging
       url: http://localhost/
@@ -475,8 +475,8 @@ jobs:
   # logs (including jobs on the self-hosted runner, whose logs are streamed to
   # GitHub), asks a language model for a diagnosis, and posts it as one sticky
   # PR comment plus the run summary. Logs are untrusted: the job never executes
-  # anything from the logs or the model, and its only secret is the optional
-  # AI_API_KEY for a non-GitHub provider (ADR-0024).
+  # anything from the logs or the model, and its only secret is AI_API_KEY,
+  # the model provider's key (ADR-0027).
   ai-diagnosis:
     needs:
       [lint-python, lint-docker, test, build, scan, push, helm-lint, deploy, smoke-test]

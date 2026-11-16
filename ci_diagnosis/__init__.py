@@ -1,4 +1,4 @@
-"""AI diagnosis of failed CI runs (ADR-0005, ADR-0006, ADR-0024).
+"""AI diagnosis of failed CI runs (ADR-0005, ADR-0027).
 
 Runs as the last CI job, only when an earlier job failed. Reads the failed
 jobs' logs, asks a language model for a structured diagnosis, and posts it as

@@ -3,6 +3,10 @@
 - **Status:** Accepted
 - **Date:** 2026-11-15
 
+## Context
+The assignment asks for a minimal runtime image. Every package in the image
+is attack surface and a possible finding for the Trivy gate in CI.
+
 ## Decision
 `dhi.io/python:3.14.10-debian13` for runtime and the `-dev` variant for the
 build stage, both pinned by digest.
