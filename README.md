@@ -42,6 +42,9 @@ on a self-hosted runner inside the kind cluster, so the cluster is never
 exposed to the internet
 ([ADR-0001](docs/decisions/0001-hybrid-ci.md),
 [ADR-0004](docs/decisions/0004-local-runner-actions-runner-controller-arc.md)).
+GitHub advises against self-hosted runners on public repositories; the next
+step would be an ephemeral kind cluster on a GitHub-hosted runner (see the
+trade-off in ADR-0001).
 
 ```mermaid
 flowchart LR

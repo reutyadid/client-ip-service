@@ -23,3 +23,12 @@ so it runs on a GitHub-hosted runner, after push, as in the assignment's order.
   `main`, so staging shows the last deployed change until the next push to
   `main`. Deploys queue and never run at once. In production, each pull request
   would get its own short-lived namespace, deleted when it closes.
+- Trade-off: GitHub advises against self-hosted runners on public
+  repositories, because a pull request can change the workflow to run on
+  them; here the only guard is the required approval for outside
+  contributors (ADR-0002). The runner also depends on this machine being on.
+  The next step would be to run deploy and smoke-test on a GitHub-hosted
+  runner, inside a kind cluster created by the job with `cluster/setup.sh`,
+  and pull the image with the job's own `GITHUB_TOKEN`. This removes the
+  local runner and the long-lived `GHCR_PULL_TOKEN`, at the cost of a
+  persistent staging environment.
