@@ -6,7 +6,6 @@ with Helm, and asks a language model to diagnose any failure.
 
 - [Run locally](#run-locally)
 - [How CI works](#how-ci-works)
-- [Deploy through CI in your own fork](#deploy-through-ci-in-your-own-fork)
 - [Where the image is published](#where-the-image-is-published)
 - [Image scan and SBOM](#image-scan-and-sbom)
 - [AI failure diagnosis](#ai-failure-diagnosis)
@@ -30,8 +29,6 @@ helm upgrade --install client-ip-service charts/client-ip-service \
 curl http://localhost/                 # {"ip":"172.19.0.1"}: the Docker network, not your public IP
 curl http://localhost/health           # {"status":"ok"}
 ```
-
-No CI runner is needed for this; it is installed only to deploy through CI.
 
 ## How CI works
 
@@ -76,54 +73,9 @@ pull request, a `staging` deployment record on the repository page, a run
 summary (test results, scan, pushed image, deployment), and the AI diagnosis as
 a pull request comment on failure.
 
-Pull requests from forks get no secrets, so they cannot push or deploy.
-
-## Deploy through CI in your own fork
-
-CI deploys to the cluster where its runner is registered, and uses the
-repository's own secrets. To have CI build, scan, push and deploy to **your**
-cluster, use your own copy of the repository. Your GitHub user name and the fork's
-name must be lowercase, as GHCR requires.
-
-**1. Fork the repository** and enable workflows in its **Actions** tab (GitHub
-disables them on forks).
-
-**2. Create the cluster** (as in [Run locally](#run-locally)):
-
-```bash
-cluster/setup.sh
-```
-
-**3. Register a runner for your fork.** Create a GitHub App under
-**Settings → Developer settings → GitHub Apps**, with the repository
-permissions **Administration: Read and write** and **Metadata: Read-only**.
-Generate a private key, install the app on your fork only, and note the App ID
-and the installation ID (the number at the end of the installation page's URL).
-Then:
-
-```bash
-kubectl create namespace arc-runners
-kubectl -n arc-runners create secret generic github-app   --from-literal=github_app_id=<APP_ID>   --from-literal=github_app_installation_id=<INSTALLATION_ID>   --from-file=github_app_private_key=<path/to/key.pem>
-```
-
-Point the runner at your fork: in `cluster/arc/runner-scale-set-values.yaml`,
-set `githubConfigUrl: https://github.com/<you>/client-ip-service`. Then:
-
-```bash
-cluster/setup-arc.sh
-```
-
-**4. Add the GitHub secrets and variable** listed in [Secrets](#secrets),
-under **Settings → Secrets and variables → Actions**.
-
-**5. Push to `main`.** The pipeline pushes the image to
-`ghcr.io/<you>/client-ip-service` and deploys it to your `staging` namespace.
-Follow it in the **Actions** tab, then:
-
-```bash
-kubectl -n staging get pods
-curl http://localhost/
-```
+Pull requests from forks get no secrets, so they cannot push or deploy. To
+run the whole pipeline against your own cluster, see
+[Deploy through CI](docs/deploy-through-ci.md).
 
 ## Where the image is published
 
@@ -132,10 +84,9 @@ ghcr.io/reutyadid/client-ip-service:<full commit SHA>
 ```
 
 GitHub Container Registry, private; the cluster pulls it with a read-only token
-([ADR-0009](docs/decisions/0009-private-image-pull-token.md)). The name follows
-the repository (`ghcr.io/${{ github.repository }}`), so a fork publishes to its
-own. `deploy` uses the digest that `push` produced, so staging runs exactly the
-image that was scanned.
+([ADR-0009](docs/decisions/0009-private-image-pull-token.md)). `deploy` uses
+the digest that `push` produced, so staging runs exactly the image that was
+scanned.
 
 ## Image scan and SBOM
 
